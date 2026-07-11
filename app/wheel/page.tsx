@@ -1,4 +1,87 @@
+import { AgentPrompt } from "@/components/AgentPrompt";
 import { Code, Endpoint } from "@/components/docs";
+
+const WHEEL_AGENT_PROMPT = `
+Integrate the Pulse Rewards "Wheel Spins" feature into this codebase.
+Pulse is a gamification API for sweepstakes sites. Implement exactly the
+architecture below - it is a hard security contract, not a suggestion.
+
+## Non-negotiable rules
+1. The Pulse API key (env var PULSE_API_KEY, format "prw_...") is used
+   ONLY in backend code. It must never appear in frontend bundles,
+   browser requests, or client-side env vars.
+2. The frontend widget is presentation only. It never calls Pulse
+   directly. All Pulse calls go: frontend -> our backend -> Pulse.
+3. Player balances live in OUR wallet system. Pulse pays via signed
+   "grants" that we verify, apply, and acknowledge. Never credit a
+   player from a frontend message or an unverified grant.
+4. Every mutating Pulse call sends an idempotency_key (a UUID minted per
+   user action) so retries can never double-spend or double-pay.
+
+## Pulse API (base https://api.playwithpulse.com, header
+## "Authorization: Bearer <PULSE_API_KEY>")
+- POST /v1/wheels/{wheel_id}/grants
+    body {"player_id": str, "count": int}
+    -> {"grants": [{"grant_id", "commitment"}]}
+    Gives a player free spins (call from our promo logic). Not billed.
+- GET /v1/wheels/{wheel_id}/players/{player_id}
+    -> {"segments": [{"label", ...}], "open_spins": int}
+- POST /v1/wheels/{wheel_id}/spin
+    body {"player_id": str, "client_seed": str?, "idempotency_key": str}
+    -> {"segment_index": int, "label": str, "currency": str,
+        "amount": int, "percent_bp": int, "percent_of": str|null,
+        "fairness": {"commitment", "server_seed", "context"},
+        "grant": {...}?, "percent_grant": {...}?, "spins_remaining": int}
+    409 means the player has no open spins. Amounts are integers in our
+    smallest currency unit (e.g. 5000 = 50.00 SC).
+- GET /v1/outbox -> {"grants": [...]}   (all unacknowledged grants)
+- POST /v1/outbox/{grant_id}/ack        (after our wallet applied it)
+
+## Build these pieces
+A. Backend endpoint POST /api/pulse/wheel/spin (our app, player must be
+   authenticated). It mints a UUID idempotency key, calls the Pulse spin
+   endpoint with our player's stable id, and returns to the frontend
+   ONLY: {segment_index, prize_text, spins_remaining}. Format prize_text
+   from the response: amount>0 -> "+{amount/100:.2f} {currency}";
+   percent_bp>0 -> "{percent_bp/100}% {percent_of} bonus"; neither ->
+   a house "no win" phrase. Map Pulse 409 to a friendly "no spins left".
+B. Backend endpoint GET /api/pulse/wheel/state returning the Pulse
+   player-state response (segments + open_spins) for the current player.
+C. Frontend page section:
+   <div id="pulse-wheel" style="width:420px;height:420px"></div>
+   <script src="https://api.playwithpulse.com/widget/pulse-wheel.js"></script>
+   Then: PulseWheel.mount(el, { segments, onSpin }) where segments comes
+   from endpoint B and onSpin calls endpoint A and returns
+   { index: segment_index, prizeText: prize_text }. The widget animates
+   the outcome; it decides nothing.
+D. An outbox worker (cron or loop, every 30-60s): GET /v1/outbox; for
+   each grant verify the HMAC signature, apply it to our wallet
+   idempotently keyed by grant_id, then POST the ack. Signature check:
+   payload = grant minus the "grant_id" and "signature" fields;
+   canonical = JSON dump with keys sorted, separators ("," ":") and no
+   whitespace; expected = HMAC-SHA256(key=PULSE_WEBHOOK_SECRET,
+   msg=canonical) hex digest; constant-time compare with
+   grant["signature"]. Grants with kind "fixed" credit
+   {currency, amount}; kind "percent" store {applies_to, basis_points}
+   for our purchase flow to consume. Reject (log, do not ack) any grant
+   that fails verification.
+
+## Acceptance checklist (verify each before declaring done)
+- [ ] Grep the built frontend assets: PULSE_API_KEY and
+      api.playwithpulse.com/v1 appear nowhere client-side (the widget
+      script URL is the only Pulse reference).
+- [ ] Spinning twice with the same idempotency key returns the identical
+      response and consumes one spin total.
+- [ ] A spin when open_spins=0 shows the friendly error, not a 500.
+- [ ] A tampered grant signature is rejected and NOT acked or credited.
+- [ ] Wallet credit is idempotent by grant_id (replaying the outbox does
+      not double-credit).
+- [ ] The widget renders, spins on click, lands on the returned
+      segment_index, and shows prize_text.
+Ask me for: PULSE_API_KEY, PULSE_WEBHOOK_SECRET, our wheel_id, how to
+resolve the authenticated player's stable player_id, and our wallet
+credit function/location.
+`;
 
 export default function WheelDocs() {
   return (
@@ -126,6 +209,8 @@ player clicks SPIN
           <tr><td><code>POST /v1/wheels/{"{id}"}/spin</code></td><td>resolve one spin</td><td>yes (1 token)</td></tr>
         </tbody>
       </table>
+
+      <AgentPrompt prompt={WHEEL_AGENT_PROMPT} />
     </>
   );
 }

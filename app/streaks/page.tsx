@@ -1,4 +1,67 @@
+import { AgentPrompt } from "@/components/AgentPrompt";
 import { Code, Endpoint } from "@/components/docs";
+
+const STREAK_AGENT_PROMPT = `
+Integrate the Pulse Rewards "Daily Login Streaks" feature into this
+codebase. Pulse is a gamification API for sweepstakes sites. Follow this
+architecture exactly - it is a hard security contract.
+
+## Non-negotiable rules
+1. The Pulse API key (env PULSE_API_KEY, "prw_...") is backend-only:
+   never in frontend bundles or browser requests.
+2. All Pulse calls go frontend -> our backend -> Pulse.
+3. Player balances live in OUR wallet. Pulse pays via signed grants we
+   verify, apply idempotently, and acknowledge.
+4. Every claim sends an idempotency_key (UUID per user action).
+
+## Pulse API (base https://api.playwithpulse.com, header
+## "Authorization: Bearer <PULSE_API_KEY>")
+- POST /v1/streaks/{streak_id}/claim
+    body {"player_id": str, "idempotency_key": str}
+    Success -> {"status": "claimed", "streak": int, "rung": int,
+                "currency": str, "amount": int, "grant": {...}?}
+    Same local day -> {"status": "already_claimed", "streak": int,
+                       "next_claim_date": "YYYY-MM-DD"} (an answer, not
+    an error, and not billed). The day boundary uses the timezone
+    configured for our site on Pulse's side; do NOT compute any streak
+    or calendar logic locally - render what the API returns. Amounts
+    are integers in our smallest currency unit (500 = 5.00 SC).
+- GET /v1/outbox and POST /v1/outbox/{grant_id}/ack for settlement
+    (shared with all Pulse features; reuse the outbox worker if one
+    already exists in this codebase).
+
+## Build these pieces
+A. Backend endpoint POST /api/pulse/streak/claim (player must be
+   authenticated): mint a UUID idempotency key, call Pulse claim with
+   the player's stable id, return {status, streak, rung, amount_text,
+   next_claim_date?} where amount_text formats amount/100 with the
+   currency label.
+B. Call it automatically once on login/session start AND expose it to a
+   "claim today's reward" button. Handle both statuses: "claimed" shows
+   a reward toast; "already_claimed" quietly updates the calendar UI.
+C. A streak calendar UI: a 7-slot strip using the response - checkmarks
+   for days 1..rung, today highlighted, remaining rungs greyed. (If the
+   configured ladder is longer/shorter ask me; do not hardcode rewards -
+   show amounts only for the day just claimed.)
+D. Outbox settlement: identical to the Pulse wheel integration. If this
+   codebase already has the Pulse outbox worker, reuse it unchanged -
+   streak grants flow through the same pipe. Otherwise implement:
+   poll GET /v1/outbox; verify HMAC-SHA256(key=PULSE_WEBHOOK_SECRET,
+   msg=canonical JSON of the grant minus grant_id and signature, keys
+   sorted, separators ("," ":")) against grant["signature"] in constant
+   time; apply to the wallet idempotently by grant_id; then ack.
+
+## Acceptance checklist
+- [ ] Claiming twice in one (site-timezone) day: first returns
+      "claimed", second "already_claimed"; exactly one wallet credit.
+- [ ] Replaying the same idempotency key returns the identical body.
+- [ ] The calendar renders purely from API responses (no local date
+      math beyond display formatting).
+- [ ] Tampered grant signatures are rejected, logged, never acked.
+- [ ] PULSE_API_KEY appears nowhere in built frontend assets.
+Ask me for: PULSE_API_KEY, PULSE_WEBHOOK_SECRET, our streak_id, the
+player id mapping, and the wallet credit function/location.
+`;
 
 export default function StreakDocs() {
   return (
@@ -74,6 +137,8 @@ export default function StreakDocs() {
           </tr>
         </tbody>
       </table>
+
+      <AgentPrompt prompt={STREAK_AGENT_PROMPT} />
     </>
   );
 }
