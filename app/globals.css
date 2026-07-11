@@ -5,10 +5,11 @@
   --line: #1f2a3d;
   --text: #e5eaf3;
   --muted: #8393ab;
-  --gold: #e6b23a;
-  --gold-dim: #9a7a2d;
+  --gold: #d938c8;          /* brand magenta (from the logo gradient) */
+  --gold-dim: #8a2a80;
+  --brand-blue: #3b7bff;
   --green: #4ade80;
-  --blue: #60a5fa;
+  --blue: #5a94ff;
   --red: #f87171;
 }
 
@@ -38,13 +39,15 @@ a:hover { text-decoration: underline; }
   overflow-y: auto;
 }
 
-.brand {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.06em;
+.brand small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  margin-top: 8px;
+  text-transform: uppercase;
 }
-.brand small { display: block; color: var(--muted); font-weight: 400; letter-spacing: 0; font-size: 12px; }
 
 .navgroup { margin-top: 22px; }
 .navgroup > .grouplabel {
@@ -83,7 +86,16 @@ a:hover { text-decoration: underline; }
 
 .main { flex: 1; padding: 40px 48px 80px; max-width: 860px; }
 
-h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h1 {
+  font-size: 30px;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, var(--brand-blue), #d938c8 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  width: fit-content;
+}
 h2 { font-size: 20px; margin: 38px 0 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 h3 { font-size: 16px; margin: 24px 0 8px; }
 .lede { color: var(--muted); font-size: 17px; margin: 0 0 26px; }

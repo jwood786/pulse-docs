@@ -33,7 +33,8 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">
-        PULSE
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pulse-logo.png" alt="Pulse" style={{ width: 130, display: "block" }} />
         <small>developer documentation</small>
       </div>
       {NAV.map((group) => (
