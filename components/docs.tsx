@@ -14,7 +14,7 @@ export const NAV = [
     items: [
       { href: "/wheel", title: "Wheel Spins", status: "live" },
       { href: "/streaks", title: "Daily Login Streaks", status: "live" },
-      { href: "/leaderboards", title: "Leaderboards", status: "soon" },
+      { href: "/leaderboards", title: "Leaderboards", status: "live" },
       { href: "/missions", title: "Missions", status: "soon" },
       { href: "/raffles", title: "Raffles", status: "soon" },
       { href: "/rakeback", title: "RakeBack", status: "soon" },
