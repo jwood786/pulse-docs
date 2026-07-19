@@ -34,6 +34,12 @@ architecture below - it is a hard security contract, not a suggestion.
         "grant": {...}?, "percent_grant": {...}?, "spins_remaining": int}
     409 means the player has no open spins. Amounts are integers in our
     smallest currency unit (e.g. 5000 = 50.00 SC).
+    The response also carries rewards[], the full manifest of the landed
+    segment: {type:"currency", currency, amount, label} rows (the cash,
+    settled via the grant/outbox) and possibly {type:"raffle_tickets",
+    raffle_id, count, label} rows. RAFFLE TICKETS ARE EARNED, NOT PAID:
+    no grant, never credit the wallet or outbox, only a raffle WIN pays.
+    Iterate rewards[]: settle currency rows, render ticket rows as a toast.
 - GET /v1/outbox -> {"grants": [...]}   (all unacknowledged grants)
 - POST /v1/outbox/{grant_id}/ack        (after our wallet applied it)
 
@@ -76,6 +82,8 @@ D. An outbox worker (cron or loop, every 30-60s): GET /v1/outbox; for
 - [ ] A tampered grant signature is rejected and NOT acked or credited.
 - [ ] Wallet credit is idempotent by grant_id (replaying the outbox does
       not double-credit).
+- [ ] raffle_tickets rewards create NO wallet credit and NO outbox grant -
+      they are rendered as a toast only.
 - [ ] The widget renders, spins on click, lands on the returned
       segment_index, and shows prize_text.
 Ask me for: PULSE_API_KEY, PULSE_WEBHOOK_SECRET, our wheel_id, how to
@@ -168,6 +176,11 @@ player clicks SPIN
     "context": "tenant:wheel:player:grant:seed"
   },
   "grant": { "grant_id": "...", "signature": "...", ... },
+  "rewards": [                                 // full manifest of the segment
+    {"type": "currency", "currency": "SC", "amount": 5000, "label": "50 SC"},
+    {"type": "raffle_tickets", "raffle_id": "weekly_draw",
+     "count": 3, "label": "+3 Raffle Tickets"}  // earned only, NO grant
+  ],
   "spins_remaining": 1
 }
       `}</Code>
@@ -177,6 +190,23 @@ player clicks SPIN
         to <code>wheel.spinTo(index, prizeText)</code> (or return them from
         <code> onSpin</code>).
       </p>
+
+      <h2>Ticket segments</h2>
+      <p>
+        A segment can also drop the player into a <a href="/raffles">raffle</a>
+        {" "}pool — configured in Studio, it surfaces as a{" "}
+        <code>raffle_tickets</code> row in the spin response&apos;s{" "}
+        <code>rewards[]</code> alongside any currency row.
+      </p>
+      <div className="callout info">
+        <strong>Tickets are earned, not paid.</strong> A{" "}
+        <code>raffle_tickets</code> reward carries <strong>no grant</strong> and
+        never touches your wallet or outbox — Pulse credits its own ticket
+        ledger; only a raffle <em>win</em> mints a grant. Iterate{" "}
+        <code>rewards[]</code>: settle <code>currency</code> rows through the
+        outbox, render <code>raffle_tickets</code> rows as a toast — never credit
+        them.
+      </div>
 
       <h2>Fairness verification</h2>
       <p>Any spin can be independently re-derived:</p>
