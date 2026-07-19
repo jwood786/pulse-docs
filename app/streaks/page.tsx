@@ -26,6 +26,13 @@ architecture exactly - it is a hard security contract.
     configured for our site on Pulse's side; do NOT compute any streak
     or calendar logic locally - render what the API returns. Amounts
     are integers in our smallest currency unit (500 = 5.00 SC).
+    A "claimed" response also carries rewards[], the full manifest of
+    the rung: {type:"currency", currency, amount, label} rows (the cash,
+    settled via the grant/outbox) and possibly {type:"raffle_tickets",
+    raffle_id, count, label} rows. RAFFLE TICKETS ARE EARNED, NOT PAID:
+    they carry NO grant, must NEVER hit the wallet or outbox, and only a
+    raffle WIN later mints a grant. Iterate rewards[]: settle currency
+    rows, render raffle_tickets rows as a toast only.
 - GET /v1/outbox and POST /v1/outbox/{grant_id}/ack for settlement
     (shared with all Pulse features; reuse the outbox worker if one
     already exists in this codebase).
@@ -55,6 +62,8 @@ D. Outbox settlement: identical to the Pulse wheel integration. If this
 - [ ] Claiming twice in one (site-timezone) day: first returns
       "claimed", second "already_claimed"; exactly one wallet credit.
 - [ ] Replaying the same idempotency key returns the identical body.
+- [ ] raffle_tickets rewards create NO wallet credit and NO outbox
+      grant - they are rendered as a toast only.
 - [ ] The calendar renders purely from API responses (no local date
       math beyond display formatting).
 - [ ] Tampered grant signatures are rejected, logged, never acked.
@@ -83,7 +92,12 @@ export default function StreakDocs() {
     "streak": 4,                       // consecutive days, 1-based
     "rung": 4,                         // ladder position paying out
     "currency": "SC", "amount": 500,
-    "grant": { "grant_id": "...", "signature": "...", ... }}
+    "grant": { "grant_id": "...", "signature": "...", ... },
+    "rewards": [                        // everything this rung awarded
+      {"type": "currency", "currency": "SC", "amount": 500, "label": "5 SC"},
+      {"type": "raffle_tickets", "raffle_id": "weekly_draw",
+       "count": 5, "label": "+5 Raffle Tickets"}   // earned only, NO grant
+    ]}
       `}</Code>
       <p>Call it whenever the player logs in or opens their rewards page — the
         platform sorts out the rest:</p>
@@ -119,11 +133,33 @@ export default function StreakDocs() {
         rewards greyed out.
       </p>
 
+      <h2>Ticket-award days</h2>
+      <p>
+        A rung can also hand out <a href="/raffles">raffle</a> tickets — e.g.
+        &quot;day 3 pays 3 SC <em>and</em> drops you into the weekly draw.&quot;
+        Configure it per day in Studio (the <strong>Tickets</strong> +{" "}
+        <strong>Raffle</strong> columns on the streak ladder). It surfaces as a{" "}
+        <code>raffle_tickets</code> row in the claim response&apos;s{" "}
+        <code>rewards[]</code>:
+      </p>
+      <div className="callout info">
+        <strong>Tickets are earned, not paid.</strong> A{" "}
+        <code>raffle_tickets</code> reward carries <strong>no grant</strong> and
+        never touches your wallet or outbox — Pulse credits its own ticket
+        ledger. Only a raffle <em>win</em> mints a grant. So iterate{" "}
+        <code>rewards[]</code>: settle <code>currency</code> rows through the
+        outbox as usual, and render <code>raffle_tickets</code> rows as a toast
+        (&quot;<code>+5 Raffle Tickets</code>&quot;) — do not credit them.
+      </div>
+
       <h2>Collecting the reward</h2>
       <p>
         Paying claims append a signed grant to your <a href="/">outbox</a> —
         verify, credit, ack, same as every feature. The response includes the
-        grant inline for immediate UX.
+        grant inline for immediate UX. The <code>rewards[]</code> array is the
+        full manifest of a rung: a <code>currency</code> row for the cash (and
+        its <code>grant</code>), plus any <code>raffle_tickets</code> rows, which
+        are ledger-only.
       </p>
 
       <h2>Endpoint summary</h2>
