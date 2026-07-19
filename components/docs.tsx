@@ -16,7 +16,7 @@ export const NAV = [
       { href: "/streaks", title: "Daily Login Streaks", status: "live" },
       { href: "/leaderboards", title: "Leaderboards", status: "live" },
       { href: "/missions", title: "Missions", status: "soon" },
-      { href: "/raffles", title: "Raffles", status: "soon" },
+      { href: "/raffles", title: "Raffles", status: "live" },
       { href: "/rakeback", title: "RakeBack", status: "soon" },
     ],
   },
