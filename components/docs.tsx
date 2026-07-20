@@ -17,6 +17,7 @@ export const NAV = [
       { href: "/leaderboards", title: "Leaderboards", status: "live" },
       { href: "/missions", title: "Missions", status: "soon" },
       { href: "/raffles", title: "Raffles", status: "live" },
+      { href: "/promos", title: "Promo Codes", status: "live" },
       { href: "/rakeback", title: "RakeBack", status: "soon" },
     ],
   },
