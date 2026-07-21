@@ -90,9 +90,11 @@ export default function VipDocs() {
       <h2>RakeBack — % of the player&apos;s own play</h2>
       <ul>
         <li><strong>Base:</strong> X bp of the player&apos;s <strong>GGR</strong>
-          {" "}(wagers − wins), wagered, or purchases — over the{" "}
+          {" "}(wagers − wins), wagered, purchases, or{" "}
+          <strong>net purchases</strong> (purchases − redeems: cash-anchored
+          rebates, requiring the reserved <code>redeem</code> event) — over the{" "}
           <strong>previous completed period</strong> (closed books, no window
-          gaming). Winners (GGR ≤ 0) earn nothing.</li>
+          gaming). A non-positive base earns nothing.</li>
         <li><strong>Signal-sized:</strong> the rate can rise per player —
           loyalty (streak ≥ N days), re-engagement (played less than the prior
           period), depositors (purchased ≥ X). Clamped by a ceiling, then a
