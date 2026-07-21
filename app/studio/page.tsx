@@ -30,7 +30,9 @@ A. EITHER a back-office nav item "Rewards Studio" -> opens
    OR the signed embed: a staff-authenticated backend endpoint
    GET /api/admin/studio-embed that calls
    POST https://api.playwithpulse.com/v1/studio/embed-token
-   (Authorization: Bearer PULSE_API_KEY) -> {embed_url, expires_in: 60}
+   (Authorization: Bearer PULSE_API_KEY - the FULL prw_ key; the pss_
+   Studio key deliberately CANNOT mint embed tokens and returns 401)
+   -> {embed_url, expires_in: 60}
    and returns embed_url; the admin page then renders
    <iframe src={embed_url} style="width:100%;height:85vh;border:0"/>.
    Mint a FRESH token on every page view (single-use, 60s TTL). The
@@ -98,6 +100,10 @@ Authorization: Bearer <PULSE_API_KEY>          // backend only, as always
 <iframe src={embed_url} style="width:100%;height:85vh;border:0" />
       `}</Code>
       <ul>
+        <li><strong>Minted with your full API key</strong> (<code>prw_</code>,
+          backend-only) — the <code>pss_</code> Studio key deliberately{" "}
+          <em>cannot</em> mint embed tokens (a config-scoped credential must
+          not be able to open sessions) and returns 401 if you try.</li>
         <li>Tokens are <strong>single-use and expire in 60 seconds</strong> —
           mint a fresh one on every page view, never cache the URL.</li>
         <li>After the first load the embedded session persists via a
@@ -120,6 +126,8 @@ Authorization: Bearer <PULSE_API_KEY>          // backend only, as always
         <tbody>
           <tr><td>Lives in</td><td>your server environment</td><td>a staff browser (httpOnly cookie)</td></tr>
           <tr><td>Scope</td><td>everything — money, PII, events</td><td><strong>reward configs only</strong></td></tr>
+          <tr><td>Can edit reward configs</td><td>yes</td><td>yes (its purpose)</td></tr>
+          <tr><td>Can mint embed sessions</td><td>yes</td><td><strong>no</strong> (401)</td></tr>
           <tr><td>Can edit your billing plan</td><td>—</td><td><strong>no, ever</strong></td></tr>
           <tr><td>Rotation impact</td><td>breaks your integration until redeployed</td><td>none — rotate freely on staff changes</td></tr>
         </tbody>
