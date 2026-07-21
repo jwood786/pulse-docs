@@ -18,14 +18,14 @@ export const NAV = [
       { href: "/missions", title: "Missions", status: "soon" },
       { href: "/raffles", title: "Raffles", status: "live" },
       { href: "/promos", title: "Promo Codes", status: "live" },
-      { href: "/rakeback", title: "RakeBack", status: "soon" },
+      { href: "/vip", title: "VIP & RakeBack", status: "live" },
     ],
   },
   {
     label: "Platform",
     items: [
       { href: "/studio", title: "Pulse Studio", status: "soon" },
-      { href: "/crm", title: "Pulse CRM", status: "soon" },
+      { href: "/crm", title: "Pulse CRM", status: "live" },
     ],
   },
 ] as const;
