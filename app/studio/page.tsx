@@ -14,16 +14,27 @@ and (optional but recommended) an embedded Player 360 panel.
    - The Studio key ("pss_..."): configs-only. It is NOT stored in this
      codebase at all - a human enters it once on Pulse's hosted Studio
      sign-in page, which keeps it in an httpOnly cookie on Pulse's domain.
-2. We do NOT proxy or iframe the Studio. It is a link-out.
+2. Two integration modes - pick ONE:
+   - LINK-OUT (simplest): a nav link to the hosted Studio; operator signs
+     in once with their pss_ key.
+   - SIGNED EMBED (in-panel iframe): our backend mints a single-use embed
+     URL per page-load and we iframe it - the operator never types a key.
+     Never cache or reuse embed URLs; they are single-use and expire in 60s.
 3. The Player 360 panel calls Pulse through OUR backend with PULSE_API_KEY
    and renders the PII-free profile - safe for support staff.
 
 ## Build these pieces
-A. Back-office nav item "Rewards Studio" -> opens
-   https://admin.playwithpulse.com/studio in a new tab. Add a one-line
-   hint: "sign in with your Pulse Studio key (pss_...)". That's the whole
-   config integration - tiers, rakeback, wheel odds, raffles, promos are
-   all edited there and go live on save.
+A. EITHER a back-office nav item "Rewards Studio" -> opens
+   https://admin.playwithpulse.com/studio in a new tab (hint: "sign in
+   with your Pulse Studio key, pss_..."),
+   OR the signed embed: a staff-authenticated backend endpoint
+   GET /api/admin/studio-embed that calls
+   POST https://api.playwithpulse.com/v1/studio/embed-token
+   (Authorization: Bearer PULSE_API_KEY) -> {embed_url, expires_in: 60}
+   and returns embed_url; the admin page then renders
+   <iframe src={embed_url} style="width:100%;height:85vh;border:0"/>.
+   Mint a FRESH token on every page view (single-use, 60s TTL). The
+   session inside the iframe persists via a partitioned cookie afterward.
 B. (Recommended) A "Player" panel on our customer-view page:
    backend GET /api/admin/pulse-profile?player_id=... (staff-authenticated)
    -> proxies GET https://api.playwithpulse.com/v1/crm/players/{id}/profile
@@ -66,14 +77,35 @@ export default function StudioDocs() {
       </ol>
 
       <h2>Adding it to your admin portal</h2>
-      <p>
-        It&apos;s a link-out — no SDK, no iframe:
-      </p>
+      <p>Two modes. The simple one is a link-out:</p>
       <Code>{`
 <a href="https://admin.playwithpulse.com/studio" target="_blank">
   Rewards Studio
 </a>
       `}</Code>
+      <h3>Or embed it in-panel (signed embed)</h3>
+      <p>
+        For a true in-dashboard tab, your backend mints a{" "}
+        <strong>single-use embed URL</strong> and you iframe it — the operator
+        is auto-signed-in, no key typing, no third-party-cookie login:
+      </p>
+      <Code>{`
+POST https://api.playwithpulse.com/v1/studio/embed-token
+Authorization: Bearer <PULSE_API_KEY>          // backend only, as always
+-> {"token": "pse_...", "expires_in": 60,
+    "embed_url": "https://admin.playwithpulse.com/studio/embed?token=pse_..."}
+
+<iframe src={embed_url} style="width:100%;height:85vh;border:0" />
+      `}</Code>
+      <ul>
+        <li>Tokens are <strong>single-use and expire in 60 seconds</strong> —
+          mint a fresh one on every page view, never cache the URL.</li>
+        <li>After the first load the embedded session persists via a
+          partitioned (CHIPS) cookie, so in-iframe navigation and reloads
+          don&apos;t need a new token.</li>
+        <li>The embedded Studio carries the same scope as the pss_ key:
+          configs only, plan and money out of reach.</li>
+      </ul>
       <p>
         Pair it with an embedded <strong>Player 360 panel</strong> on your
         customer-view page (via your backend, using your normal API key) —
