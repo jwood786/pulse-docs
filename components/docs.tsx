@@ -24,8 +24,9 @@ export const NAV = [
   {
     label: "Platform",
     items: [
-      { href: "/studio", title: "Pulse Studio", status: "soon" },
+      { href: "/studio", title: "Pulse Studio", status: "live" },
       { href: "/crm", title: "Pulse CRM", status: "live" },
+      { href: "/games", title: "Pulse Games", status: "soon" },
     ],
   },
 ] as const;

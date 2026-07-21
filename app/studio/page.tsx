@@ -1,16 +1,104 @@
-import { ComingSoon } from "@/components/docs";
+import { AgentPrompt } from "@/components/AgentPrompt";
+import { Code } from "@/components/docs";
 
-export default function Page() {
+const STUDIO_AGENT_PROMPT = `
+Add "Pulse Rewards" to this back-office / admin portal. Pulse is the
+gamification platform this site already integrates (wheel, streaks,
+raffles, promos, VIP, CRM). Two pieces: a link-out to the hosted Studio,
+and (optional but recommended) an embedded Player 360 panel.
+
+## Non-negotiable rules
+1. TWO different keys, never confused:
+   - PULSE_API_KEY ("prw_..."): backend-only, moves money/PII. Already in
+     our server env. NEVER used in anything browser-facing.
+   - The Studio key ("pss_..."): configs-only. It is NOT stored in this
+     codebase at all - a human enters it once on Pulse's hosted Studio
+     sign-in page, which keeps it in an httpOnly cookie on Pulse's domain.
+2. We do NOT proxy or iframe the Studio. It is a link-out.
+3. The Player 360 panel calls Pulse through OUR backend with PULSE_API_KEY
+   and renders the PII-free profile - safe for support staff.
+
+## Build these pieces
+A. Back-office nav item "Rewards Studio" -> opens
+   https://admin.playwithpulse.com/studio in a new tab. Add a one-line
+   hint: "sign in with your Pulse Studio key (pss_...)". That's the whole
+   config integration - tiers, rakeback, wheel odds, raffles, promos are
+   all edited there and go live on save.
+B. (Recommended) A "Player" panel on our customer-view page:
+   backend GET /api/admin/pulse-profile?player_id=... (staff-authenticated)
+   -> proxies GET https://api.playwithpulse.com/v1/crm/players/{id}/profile
+   with PULSE_API_KEY, returns as-is. Render: VIP tier + progress, LTV,
+   churn band, streak, wagered_30d, days_since_purchase, rg_status badge,
+   messageable badges. This response is PII-free by design.
+C. (Optional) same pattern for GET /v1/vip/players/{id} (claim states) and
+   GET /v1/raffles/{id}/winners on an ops dashboard.
+
+## Acceptance checklist
+- [ ] Studio opens from our nav; no pss_ key stored anywhere in this repo.
+- [ ] The profile panel renders for a real player id; shows RG badge.
+- [ ] PULSE_API_KEY appears nowhere in built frontend assets.
+- [ ] Staff without back-office auth cannot reach the proxy endpoints.
+Ask me for: where the back-office nav is defined, the customer-view page,
+and how staff authentication works in this codebase.
+`;
+
+export default function StudioDocs() {
   return (
-    <ComingSoon
-      title="Pulse Studio"
-      blurb="Game aggregation: Pulse's own library of provably fair, server-authoritative games - fish tables, slots, and more - embeddable in your lobby the same way the wheel embeds today."
-      planned={[
-        "A game lobby API: list titles, launch a session for a player, receive wager/win events into your wallet flow",
-        "Games run on Pulse's deterministic engine with replayable session recordings - every session is auditable after the fact",
-        "First titles: Reef Raider (multiplayer fish table) and Kraken's Vault (slot with an exactly computed par sheet)",
-        "Same trust model as everything else: your wallet, your players, our math",
-      ]}
-    />
+    <>
+      <h1>Pulse Studio</h1>
+      <p className="lede">
+        The operator console: configure your wheel, streaks, leaderboards,
+        raffles, promo codes, and VIP program yourself — every change
+        validated with the platform&apos;s own budget rules and versioned,
+        live on save. Hosted by Pulse; added to your admin portal with a link.
+      </p>
+
+      <h2>Getting access</h2>
+      <ol>
+        <li>Ask your Pulse account manager for a <strong>Studio key</strong>
+          {" "}(<code>pss_…</code>).</li>
+        <li>Open{" "}
+          <code>https://admin.playwithpulse.com/studio</code> and sign in with
+          it — once per browser; it&apos;s held in an httpOnly cookie.</li>
+        <li>You&apos;ll see a tab for every feature <em>your plan includes</em> —
+          author configs, hit Save, and the change governs the very next
+          spin/claim/draw.</li>
+      </ol>
+
+      <h2>Adding it to your admin portal</h2>
+      <p>
+        It&apos;s a link-out — no SDK, no iframe:
+      </p>
+      <Code>{`
+<a href="https://admin.playwithpulse.com/studio" target="_blank">
+  Rewards Studio
+</a>
+      `}</Code>
+      <p>
+        Pair it with an embedded <strong>Player 360 panel</strong> on your
+        customer-view page (via your backend, using your normal API key) —
+        the <a href="/crm">profile read</a> is PII-free by design, so support
+        staff can see VIP tier, LTV, churn band, and RG status without
+        touching personal data. The agent prompt below builds both.
+      </p>
+
+      <h2>The Studio key security model</h2>
+      <table>
+        <thead><tr><th></th><th><code>prw_</code> API key</th><th><code>pss_</code> Studio key</th></tr></thead>
+        <tbody>
+          <tr><td>Lives in</td><td>your server environment</td><td>a staff browser (httpOnly cookie)</td></tr>
+          <tr><td>Scope</td><td>everything — money, PII, events</td><td><strong>reward configs only</strong></td></tr>
+          <tr><td>Can edit your billing plan</td><td>—</td><td><strong>no, ever</strong></td></tr>
+          <tr><td>Rotation impact</td><td>breaks your integration until redeployed</td><td>none — rotate freely on staff changes</td></tr>
+        </tbody>
+      </table>
+      <p className="muted">
+        Every save is validated (an over-budget wheel cannot be saved) and
+        versioned — you can always see what changed and when. Ask Pulse to
+        rotate the Studio key whenever someone with access leaves.
+      </p>
+
+      <AgentPrompt prompt={STUDIO_AGENT_PROMPT} />
+    </>
   );
 }
