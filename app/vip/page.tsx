@@ -28,7 +28,12 @@ it is a hard security contract.
         benefits:[{tier, cadence, period_id, reward, rakeback?, eligible,
                    activity_ok, claimed, claimable, ...}]}
     rakeback (when configured): {percent_bp, effective_bp, boosts_applied,
-    of, base, amount, cap, currency} - amount is what a claim would pay NOW.
+    of, base, amount, cap, currency,
+    accruing: {period_id, ends_at, base, effective_bp, amount,
+               wagered_so_far, activity_ok}}.
+    amount = claimable NOW (previous closed period); accruing = the CURRENT
+    period's running tab - render it as "next bonus so far" with a countdown
+    to ends_at. Display only: it becomes claimable when the period closes.
 - POST /v1/vip/claim  {"player_id", "idempotency_key": "uuid"}
     -> {status: "claimed"|"nothing_to_claim", tier,
         claimed:[{tier, cadence, period_id, rakeback_amount}], rewards:[...]}
@@ -42,9 +47,11 @@ B. Backend POST /api/pulse/vip/claim: mint a UUID idempotency key, call
 C. A VIP page/panel: tier badge, progress bar (wagered/needed/progress_pct
    from the API), the tier ladder, and a "claim" button that appears when
    any benefit is claimable; one toast per rewards[] row on success.
-D. Rakeback display: when benefits[].rakeback exists, show "your X% rakeback
-   on last period: <amount>" using effective_bp and amount - these are
-   per-player (signals can boost the rate); never hardcode a percentage.
+D. Rakeback display: when benefits[].rakeback exists, show BOTH numbers:
+   "claimable now: <amount>" (last closed period) AND "accruing:
+   <accruing.amount> so far - pays <weekday from accruing.ends_at>" so the
+   bonus visibly grows as they play. Use effective_bp from each block;
+   never hardcode a percentage - rates are per-player (signal boosts).
 E. Win events: in our game-result handler, POST type:"win" with the payout
    amount and a per-round idempotency key. Without wins, GGR overstates and
    rakeback overpays players who won.
